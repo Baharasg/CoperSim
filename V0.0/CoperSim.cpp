@@ -29,7 +29,7 @@ void SpMV(int A[LENGTH][WIDTH],
 		// #pragma HLS unroll
 		out[i] = DotProduct(A[i],B);
 
-		// BRAM access to read offsets occurs in either way of above if condition.
+		// BRAM access all the elements in width are read in parallel
 		out_latency[2] = out_latency[2] + latency[2];
 
 		// add dot-product latency
@@ -86,11 +86,12 @@ int LilDecompress(int indices[LIL_LENGTH][WIDTH],
 		// #pragma HLS unroll
 		if (read_inx[i] < LIL_LENGTH-1 and indices[read_inx[i]][i] < min_inx){
 			min_inx = indices[read_inx[i]][i];
-
-			// BRAM access
-			out_latency[2] = out_latency[2] + latency[2];
 		}
 	}
+	// BRAM access all in parallel
+	out_latency[2] = out_latency[2] + latency[2];
+	// decompress
+	out_latency[3] = out_latency[3] + latency[2];
 
 	for (int i = 0; i<WIDTH; i++){
 		// #pragma HLS unroll
@@ -98,8 +99,7 @@ int LilDecompress(int indices[LIL_LENGTH][WIDTH],
 			A[i] = values[read_inx[i]][i];
 			read_inx[i]++;
 
-			// BRAM access
-			out_latency[2] = out_latency[2] + latency[2];
+			// parallel with indices, so no need to add latency
 		}
 		else {
 			A[i] = 0;
@@ -175,18 +175,17 @@ void LilTop(int indices[LIL_LENGTH][WIDTH],
 	for (int i = 0; i<LIL_LENGTH; i++){
 		for (int j = 0; j<WIDTH; j++){
 			buff_indices[i][j] = indices[i][j];
-
-			// add memory latency
-			if (buff_indices[i][j] != 100){
-				out_latency[1] = out_latency[1] + latency [1];
-			}
+			// no need to add memory latency due to parallelism (same size indices and values)
 		}
 	}
 
 	for (int i = 0; i<LIL_LENGTH; i++){
 		for (int j = 0; j<WIDTH; j++){
 			buff_values[i][j] = values[i][j];
-			// no need to add memory latency due to parallelism (same size indices and values)
+			// add memory latency
+			if (buff_values[i][j] != 100){
+				out_latency[1] = out_latency[1] + latency [1];
+			}
 		}
 	}
 	for (int j = 0; j<WIDTH; j++){
@@ -220,17 +219,20 @@ int CsrDecompress(int offsets[CSR_OFFSETS_LENGTH],
 	}
 	// BRAM access
 	out_latency[2] = out_latency[2] + latency[2];
+	// decompress
+	out_latency[3] = out_latency[3] + latency[2];
 
 
 	for (int i = 0; i<num_val; i++){
 		// #pragma HLS pipeline
 		A[col_indices[old_inx + i]] = values[old_inx + i];
 
-		// BRAM access to read values and indices (2 times)
-		out_latency[2] = out_latency[2] + 2 * latency[2];
 
-		// add latency for decompressing a single non-zero values
-		// out_latency[3] = out_latency[3] + latency[3];
+		// BRAM access not parallel because we don't know the number of reads
+		out_latency[2] = out_latency[2] + latency[2];
+
+		// decompress
+		out_latency[3] = out_latency[3] + latency[2];
 	}
 
 	return num_val;
@@ -340,15 +342,24 @@ int BcsrDecompress(int offsets[BCSR_OFFSETS_LENGTH],
 		num_blocks = offsets[read_inx] - offsets[read_inx - 1];
 	}
 
+	// BRAM access
+	out_latency[2] = out_latency[2] + latency[2];
+
+	// decompress
+	out_latency[3] = out_latency[3] + latency[2];
+
 	for (int i = 0; i<num_blocks; i++){
 		#pragma HLS unroll
 		for (int j = 0; j<BCSR_VAL_WIDTH; j++){
 			#pragma HLS unroll
 			A[j / BCSR_BLOCK_LENGTH][col_indices[old_inx + i]+j % BCSR_BLOCK_LENGTH] = values[old_inx + i][j];
-
-			// BRAM access to read values and indices (2 times)
-			out_latency[2] = out_latency[2] + 2 * latency[2];
 		}
+
+		// BRAM access blocks are not read in parallel but their elements are
+		out_latency[2] = out_latency[2] + latency[2];
+
+		// decompress
+		out_latency[3] = out_latency[3] + latency[2];
 	}
 
 	return num_blocks;
@@ -469,10 +480,14 @@ int CooDecompress(int coo_tuples[COO_NUM_TUPLES][3],
 			if (coo_tuples[i][0] == row ){ // if the tuple row matches our target row
 				A[coo_tuples[i][1]] = coo_tuples[i][2]; // go to the column index in the row and put the value
 
+				// not parallel because we don't know how many we are going to read
 				// BRAM access
 				out_latency[2] = out_latency[2] + latency[2];
+
+				// decompress
+				out_latency[3] = out_latency[3] + latency[2];
+				vector_exist = 1;
 		  }
-			vector_exist = 1;
 		}
 	}
 
@@ -502,7 +517,9 @@ void CooSpMV(int coo_tuples[COO_NUM_TUPLES][3],
 
 		vector_exist = CooDecompress(coo_tuples, i, A, out_latency, latency);
 
-		out[i] = DotProduct(A,B);
+		if (vector_exist == 1){
+			out[i] = DotProduct(A,B);
+		}
 
 		if (vector_exist == 1){
 			// add dot-product latency
@@ -531,12 +548,13 @@ void CooTop(int coo_tuples[COO_NUM_TUPLES][3],
 	for (int i = 0; i<COO_NUM_TUPLES; i++){
 		for (int j = 0; j < 3; j++) {
 			buff_coo_tuples[i][j] = coo_tuples[i][j];
-
-			if (buff_coo_tuples[i][j] != 100){
-				// memory
-				out_latency[1] = out_latency[1] + latency[1];
-			}
 		}
+
+		if (buff_coo_tuples[i][0] != 100){
+			// memory
+			out_latency[1] = out_latency[1] + 3 * latency[1];
+		}
+
 	}
 	for (int j = 0; j<WIDTH; j++){
 		buff_B[j] = B[j];
@@ -567,14 +585,18 @@ int CscDecompress(int row_indices[CSC_ROW_INX_LENGTH],
     Decompress_Row:for(int i = 0; i < CSC_ROW_INX_LENGTH && col_ptr < CSC_OFFSETS_LENGTH;) {
     	int start_index = i;
     	Get_Indices:while(i < start_index + num_val) {
-			if(row_indices[i] == read_inx) {
-				A[col_ptr-1] = values[i];
+				if(row_indices[i] == read_inx) {
+					A[col_ptr-1] = values[i];
 
-				// BRAM
-				out_latency[2] = out_latency[2] + latency[2];
+					// not parallel since we don't know how many values we will read
+					// BRAM
+					out_latency[2] = out_latency[2] + 2 * latency[2];
 
-				break;
-			}
+					// decompress
+					out_latency[3] = out_latency[3] + 2 * latency[2];
+
+					break;
+				}
 			i++;
     	}
 		i = offsets[col_ptr++];
@@ -582,6 +604,9 @@ int CscDecompress(int row_indices[CSC_ROW_INX_LENGTH],
 
 		// BRAM
 		out_latency[2] = out_latency[2] + latency[2];
+
+		// decompress
+		out_latency[3] = out_latency[3] + latency[2];
 
     }
     return num_val;
@@ -599,6 +624,7 @@ void CscSpMV(int row_indices[CSC_ROW_INX_LENGTH],
 			 		   int latency[LATENCY_PARAM]){
 
     int A[LENGTH];
+
     SpMV_Decompress:for (int i = 0; i<LENGTH; i++){ //iterate across rows...
       int num_val = CscDecompress(row_indices, offsets, values, i, A, out_latency, latency);
       // #pragma HLS unroll
@@ -711,6 +737,8 @@ int DiaDecompress(int dia_diagonals[NUM_DIAGONALS][MAX_DIAGONAL_LEN],
 					int out_latency[LATENCY_PARAM],
 					int latency[LATENCY_PARAM]){
 
+	int vector_exist = 0;
+
 	// todo: this
 	decompress_loop:
 	for (int i = 0; i < NUM_DIAGONALS; i++){
@@ -720,11 +748,15 @@ int DiaDecompress(int dia_diagonals[NUM_DIAGONALS][MAX_DIAGONAL_LEN],
 			if (!IsRowOnDiagonal(row, dia)) continue;
 			// column index is the row + dia
 			A[row + dia] = dia_diagonals[dia + 6][DiagonalIndexForRow(row, dia) + 1]; // + 1 since 0 element is the diagonal number
-
-			// BRAM access
-			out_latency[2] = out_latency[2] + latency[2];
+			vector_exist = 1;
 		}
 	}
+
+	// BRAM access parallel because we can access all the diagonal at the same time
+	out_latency[2] = out_latency[2] + latency[2];
+
+	// decompress
+	out_latency[3] = out_latency[3] + latency[2];
 
 	return 1;
 }
@@ -737,6 +769,7 @@ void DiaSpMV(int dia_diagonals[NUM_DIAGONALS][MAX_DIAGONAL_LEN],
 			 int out_latency[LATENCY_PARAM],
 			 int latency[LATENCY_PARAM]){
 
+	int vector_exist = 0;
 	int A[WIDTH];
 
 	sp_mv_loop:
@@ -749,12 +782,15 @@ void DiaSpMV(int dia_diagonals[NUM_DIAGONALS][MAX_DIAGONAL_LEN],
 			A[i] = 0;
 		}
 
-		DiaDecompress(dia_diagonals, i, A, out_latency, latency);
+		vector_exist = DiaDecompress(dia_diagonals, i, A, out_latency, latency);
+
 
 		out[i] = DotProduct(A,B);
 
-		// dot product latency
-		out_latency[0] = out_latency[0] + latency[0];
+		if (vector_exist == 1){
+			// dot product latency
+			out_latency[0] = out_latency[0] + latency[0];
+		}
 
 	}
 }
@@ -817,10 +853,14 @@ int EllDecompress(int ell_values[ELL_MAX_COMP_ROW_LENGTH],
 		if (ell_values[i] == 100) break; // reach end of values
 			A[ell_col_indices[i]] = ell_values[i]; // go to the column index in the row and put the value
 			vector_exist = 1;
-
-			// BRAM access
-			out_latency[2] = out_latency[2] + 2 * latency[2];
 	}
+
+  // thw width of ell is fixed, hence we can always break it down into BRAM blocks and read in parallel
+	// BRAM access
+	out_latency[2] = out_latency[2] + latency[2];
+
+	// decompress
+	out_latency[3] = out_latency[3] + latency[2];
 
 	// the rest will be 0
 
@@ -851,6 +891,7 @@ void EllSpMV(int ell_values[LENGTH][ELL_MAX_COMP_ROW_LENGTH],
 			}
 
 			int vector_exist = EllDecompress(ell_values[i], ell_col_indices[i], A, out_latency, latency);
+
 
 			out[i] = DotProduct(A,B);
 
@@ -887,12 +928,6 @@ void EllTop(int ell_values[LENGTH][ELL_MAX_COMP_ROW_LENGTH],
 		for (int j = 0; j < ELL_MAX_COMP_ROW_LENGTH; j++) {
 			buff_ell_values[i][j] = ell_values[i][j];
 		}
-		if (buff_ell_values[i][0] == 100){
-			break;
-		}
-
-		// add memory streaming four bytes
-		out_latency[1] = out_latency[1] + latency [1];
 	}
 
 	copy_col_ind_loop:
@@ -900,7 +935,12 @@ void EllTop(int ell_values[LENGTH][ELL_MAX_COMP_ROW_LENGTH],
 		for (int j = 0; j < ELL_MAX_COMP_ROW_LENGTH; j++) {
 			buff_ell_col_indices[i][j] = ell_col_indices[i][j];
 		}
-		// no need to add memory latency here, dure to parallelism (similar for for indices and values)
+
+		if (buff_ell_col_indices[i][0] == 100){
+			break;
+		}
+		// add memory streaming four bytes
+		out_latency[1] = out_latency[1] + latency [1];
 	}
 
 	copy_b_loop:

@@ -14,7 +14,7 @@
 #define CSC_ROW_INX_LENGTH 64
 #define CSC_VAL_LENGTH 64
 
-#define BCSR_OFFSETS_LENGTH 4
+#define BCSR_OFFSETS_LENGTH 2
 #define BCSR_COL_INX_LENGTH 4
 #define BCSR_VAL_LENGTH 8
 #define BCSR_VAL_WIDTH 8
@@ -28,7 +28,7 @@
 #define NUM_DIAGONALS 15
 #define MAX_DIAGONAL_LEN 9
 
-#define ELL_MAX_COMP_ROW_LENGTH 7
+#define ELL_MAX_COMP_ROW_LENGTH 8
 
 //-------------------------------
 //---------| COMMON |------------
@@ -38,7 +38,7 @@ int DotProduct(int A[WIDTH],
 			   int B[WIDTH]);
 
 //-------------------------------
-//----------| DENSE |------------
+//--------| 0. DENSE |-----------
 //-------------------------------
 
 void SpMV(int A[LENGTH][WIDTH],

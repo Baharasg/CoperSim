@@ -1,6 +1,6 @@
 
-file_dir = dir('../raw_matrices/*.mat');
-read_dir = '../raw_matrices/';
+file_dir = dir('../synthetic_matrices/*.mat');
+read_dir = '../synthetic_matrices/';
 dir_name = '../inputs_to_CoperSim/';
 
 for k=1:length(file_dir)
@@ -61,7 +61,7 @@ for k=1:length(file_dir)
              
         % partitioning the large matrix into small ones
         Data = load(strcat(read_dir,file_name));
-        A = Data.Problem.A;
+        A = Data.A;
         A_size = size(A); % a 2x2 matrix including the dimension of A
         partitions = round((A_size/partition_width))+1;  % a 2x2 matrix including the number of partitions at each dimension
                 
@@ -76,8 +76,8 @@ for k=1:length(file_dir)
         total_nz_per_block = 0;
         
        
-%         for p = 1:(partitions(1)*partitions(2)) % this iterates over all 8000x8000 partitions
-        for p = 1:10 % we may want to process only a few partitions as
+        for p = 1:(partitions(1)*partitions(2)) % this iterates over all 8000x8000 partitions
+%         for p = 1:10 % we may want to process only a few partitions as
             p;
             if ((p_i+partition_width) > A_size(1))
                 w = A_size(1);
