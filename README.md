@@ -4,7 +4,7 @@ The FPGA emulator for Copernicus: Characterizing the Performance Implications of
 To Compile:
 g++ -o CoperSim CoperSim_host.cpp CoperSim.cpp
 
-To run:
+## To run:
 
 ### 0. DENSE
 
@@ -39,7 +39,7 @@ To run:
 ./CoperSim ell <latency_file> \<indices> \<values>
 
 
-Some example matrices in seven formats:
+## Some example matrices in seven formats:
 
 ## DENSE:
 
