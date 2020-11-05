@@ -1,5 +1,5 @@
 # CoperSim
-The FPGA emulator for Copernicus: Characterizing the Performance Implications of Compression Formats Used in Sparse Workloads
+The FPGA emulator for Copernicus: Characterizing the Performance Implications of Compression Formats Used in Sparse Workloads. Copernicus characterizes the impact of using seven frequently used sparse formats on performance, based on a DSA for sparse matrix-vector multiplication (SpMV), implemented on an FPGA.
 
 To Compile:
 g++ -o CoperSim CoperSim_host.cpp CoperSim.cpp
@@ -246,76 +246,76 @@ Some example matrices in seven formats:
 
 ### offsets:
 
-#### example 1: 
+#### example 1:
 4 10 14 18 21 24 29 32
 
-#### example 2: 
+#### example 2:
 0 0 0 1 2 2 2 3
 
 ### column indices:
 
-#### example 1: 
+#### example 1:
 1 2 4 7 1 2 3 4 6 7 2 3 5 6 1 2 4 7 3 5 8 2 3 6 1 2 4 7 8 5 7 8
 
-#### example 2: 
+#### example 2:
 5 8 8
 
 ### values:
 
-#### example 1: 
+#### example 1:
 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1
 
-#### example 2: 
+#### example 2:
 1 1 1
 
 ## BCSR:
 
 ### offsets:
 
-#### example 1: 
+#### example 1:
 2 4
 
-#### example 2: 
+#### example 2:
 1 2
 
 ### column indices:
 
-#### example 1: 
+#### example 1:
 0 4 0 4
 
-#### example 2: 
+#### example 2:
 4 4
 
 ### values:
 
-#### example 1: 
+#### example 1:
 1 1 0 1 1 1 1 1 0 1 1 0 1 1 0 1 0 0 1 0 0 1 1 0 1 1 0 1 0 0 0 0 0 0 1 0 0 1 1 0 1 1 0 0 0 0 1 0 1 0 0 1 0 1 0 0 0 0 1 1 1 0 1 1
 
-#### example 2: 
+#### example 2:
 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 1
 
 ## CSC:
 
 ### offsets:
 
-#### example 1: 
+#### example 1:
 4 10 14 18 21 24 29 32
 
-#### example 1: 
+#### example 1:
 0 0 0 0 1 1 1 3
 
 ### row indices:
 
-#### example 1: 
+#### example 1:
 1 2 4 7 1 2 3 4 6 7 2 3 5 6 1 2 4 7 3 5 8 2 3 6 1 2 4 7 8 5 7 8
 
-#### example 2: 
+#### example 2:
 4 5 8
 
 ### values:
 
-#### example 1: 
+#### example 1:
 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1
 
-#### example 2: 
+#### example 2:
 1 1 1
